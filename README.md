@@ -2,16 +2,6 @@
 
 A minimal Go-based microservice that returns the current timestamp and the client’s IP address in JSON format.
 
----
-
-Example Response
-
-```json
-{
-  "timestamp": "2025-01-01T12:00:00Z",Features
-    "ip": "127.0.0.1"
-}
-
 Features
 
 Built using Go (static binary)
