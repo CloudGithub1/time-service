@@ -1,74 +1,86 @@
-🕒 time-service
+**# 🕒 time-service**
 
-A minimal Go-based microservice that returns the current timestamp and the client’s IP address in JSON format.
-Example output:
+A minimal **Go-based microservice** that returns the **current timestamp** and the **client’s IP address** in JSON format.
+
+### Example Response
+```json
 {
   "timestamp": "2025-01-01T12:00:00Z",
   "ip": "127.0.0.1"
 }
 
-Features
+**✨ Features**
+
 Built using Go (static binary)
 Ultra-lightweight container using scratch base image
 Runs as non-root user inside the container
-
 Simple to build & run using only:
+
 docker build
 docker run
 
-1. Prerequisites
-Before running this project locally, ensure the following tools are installed:
+**1️⃣ Prerequisites**
+
+Ensure the following tools are installed locally:
+
 Git
 Download: https://git-scm.com/downloads
+
 Docker Desktop
 Download: https://www.docker.com/products/docker-desktop/
+
 Verify Docker is running:
 docker --version
 
-2. Clone the Repository
+**2️⃣ Clone the Repository**
 git clone https://github.com/CloudGithub1/time-service.git
 cd time-service
 
-3. Build the Docker Image
+**3️⃣ Build the Docker Image**
 docker build -t time-service .
 
-This will:
+**This will:**
+
 Build the Go application
 Create a static binary
-Produce a tiny scratch container image named time-service
+Produce a tiny scratch-based container image named time-service
 
-4. Run the Container
+**4️⃣ Run the Container**
 docker run -p 8080:8080 time-service
-Expected log:
+
+**Expected log:**
 time-service starting on :8080
+
 The container will continue running in your terminal.
 
-5. Test the Service
+**5️⃣ Test the Service**
 Option A — Browser
-Visit:
+
+Open:
 http://localhost:8080/
 
 Option B — curl
 curl http://localhost:8080/
 
-Expected response:
-
+Expected Response
 {
   "timestamp": "2025-01-01T12:00:00Z",
   "ip": "127.0.0.1"
 }
 
-6. Verify NON-ROOT Container (Mandatory)
+**6️⃣ Verify NON-ROOT Container (Mandatory)**
 
-Open a new terminal:
+Open a new terminal and run:
 docker image inspect time-service --format '{{.Config.User}}'
+
 Expected output:
 10001
 
-This confirms the container is running as a non-root user, following best security practices.
+This confirms the container is running as a non-root user, following container security best practices.
 
-7. Test Using Published Docker Image (Optional)
-If you do not want to build the image locally, test directly from Docker Hub.
+**7️⃣ Test Using Published Docker Image (Optional)**
+
+If you don’t want to build locally, you can pull the image directly from Docker Hub.
 
 Step 1 — Pull the image
 docker pull clouddockerhub1/time-service:v1.0
@@ -76,16 +88,17 @@ docker pull clouddockerhub1/time-service:v1.0
 Step 2 — Run the container
 docker run -p 8080:8080 clouddockerhub1/time-service:v1.0
 
-Step 3 — Test in browser
+Step 3 — Test
+Browser:
+
 http://localhost:8080/
 Or:
 curl http://localhost:8080/
 
+**8️⃣ Optional: Using This Image in ECS or EKS**
+🟦 A) Deploying in Amazon ECS
 
-8. Optional: Using This Image in ECS or EKS
- A) Deploying in Amazon ECS
-
-Update your task definition JSON:
+Update your ECS task definition:
 
 "containerDefinitions": [
   {
@@ -99,12 +112,11 @@ Update your task definition JSON:
     ]
   }
 ]
+Deploy the new task definition revision to your ECS service.
 
-Deploy the updated task definition revision to your ECS service.
+**🟩 B) Deploying in Kubernetes (EKS)**
 
- B) Deploying in Kubernetes (EKS)
-
-Add/update your deployment.yaml:
+Update your deployment.yaml:
 
 spec:
   containers:
@@ -113,27 +125,35 @@ spec:
       ports:
         - containerPort: 8080
 
-Apply:
+Apply the deployment:
 
 kubectl apply -f deployment.yaml
-Expose it using a LoadBalancer Service:
-kubectl expose deployment time-service --type=LoadBalancer --port=80 --target-port=8080
 
-9. Cleanup (Optional)
-Stop all running containers:
+Expose it using a LoadBalancer service:
+
+kubectl expose deployment time-service \
+  --type=LoadBalancer \
+  --port=80 \
+  --target-port=8080
+
+**9️⃣ Cleanup (Optional)**
+
+Stop running containers:
 docker ps
 docker stop <container-id>
 
 Remove local images:
 docker rmi time-service
 
-Completed Requirements
+✅ Completed Requirements
 
 ✔ Minimal microservice returning timestamp + IP
-✔ Proper Dockerfile with best practices
-✔ Image runs as non-root user
+✔ Dockerfile with best practices
+✔ Runs as non-root user
 ✔ Very small image size (scratch)
-✔ Clear documentation for beginners
-✔ Ready for cloud platforms (ECS/EKS)
+✔ Clear beginner-friendly documentation
+✔ Ready for ECS / EKS
 ✔ Build & run using only two commands:
-docker build + docker run
+
+docker build
+docker run
