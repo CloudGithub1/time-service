@@ -1,0 +1,127 @@
+pipeline {
+  agent any
+
+  parameters {
+    choice(name: 'ENVIRONMENT', choices: ['dev', 'qa', 'prod'], description: 'Deployment environment')
+    string(name: 'GIT_BRANCH', defaultValue: 'main', description: 'Git branch')
+  }
+
+  environment {
+    AWS_REGION = 'us-east-1'
+    APP_NAME   = 'time-service'
+    ECR_REPO   = 'time-service'
+  }
+
+  stages {
+
+    stage('Checkout') {
+      steps {
+        git branch: params.GIT_BRANCH, url: 'https://github.com/CloudGithub1/time-service.git'
+      }
+    }
+
+    stage('Set Variables') {
+      steps {
+        script {
+          COMMIT_SHA = sh(script: "git rev-parse --short HEAD", returnStdout: true).trim()
+
+          ACCOUNT_MAP = [
+            dev : '111111111111',
+            qa  : '222222222222',
+            prod: '333333333333'
+          ]
+
+          AWS_ACCOUNT_ID = ACCOUNT_MAP[params.ENVIRONMENT]
+          ECR_URI = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}"
+
+          IMAGE_TAG = (params.ENVIRONMENT == 'dev') ? COMMIT_SHA :
+                      (params.ENVIRONMENT == 'qa')  ? "qa-${COMMIT_SHA}" :
+                                                      "prod-${COMMIT_SHA}"
+
+          echo "ENV=${params.ENVIRONMENT}"
+          echo "IMAGE=${ECR_URI}:${IMAGE_TAG}"
+        }
+      }
+    }
+
+    stage('Configure AWS') {
+      steps {
+        withCredentials([
+          string(credentialsId: 'aws-access-key', variable: 'AWS_ACCESS_KEY_ID'),
+          string(credentialsId: 'aws-secret-key', variable: 'AWS_SECRET_ACCESS_KEY')
+        ]) {
+          sh '''
+            aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+            aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+            aws configure set region $AWS_REGION
+          '''
+        }
+      }
+    }
+
+    stage('Login to ECR') {
+      steps {
+        sh '''
+          aws ecr get-login-password --region $AWS_REGION |
+          docker login --username AWS --password-stdin ${ECR_URI%/*}
+        '''
+      }
+    }
+
+    stage('Build Image (DEV only)') {
+      when { expression { params.ENVIRONMENT == 'dev' } }
+      steps {
+        sh '''
+          docker build -t $ECR_REPO:$IMAGE_TAG .
+          docker tag $ECR_REPO:$IMAGE_TAG $ECR_URI:$IMAGE_TAG
+          docker push $ECR_URI:$IMAGE_TAG
+        '''
+      }
+    }
+
+    stage('Promote Image (QA / PROD)') {
+      when { expression { params.ENVIRONMENT != 'dev' } }
+      steps {
+        script {
+          SOURCE_ENV = (params.ENVIRONMENT == 'qa') ? 'dev' : 'qa'
+          SOURCE_ACCOUNT = ACCOUNT_MAP[SOURCE_ENV]
+          SOURCE_ECR = "${SOURCE_ACCOUNT}.dkr.ecr.${AWS_REGION}.amazonaws.com/${ECR_REPO}"
+          SOURCE_TAG = (SOURCE_ENV == 'dev') ? COMMIT_SHA : "qa-${COMMIT_SHA}"
+
+          sh """
+            docker pull ${SOURCE_ECR}:${SOURCE_TAG}
+            docker tag ${SOURCE_ECR}:${SOURCE_TAG} ${ECR_URI}:${IMAGE_TAG}
+            docker push ${ECR_URI}:${IMAGE_TAG}
+          """
+        }
+      }
+    }
+
+    stage('Terraform Deploy') {
+      steps {
+        dir('terraform') {
+          sh """
+            terraform init
+            terraform apply -auto-approve \
+              -var container_image=${ECR_URI}:${IMAGE_TAG}
+          """
+        }
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "✅ ${params.ENVIRONMENT.toUpperCase()} deployment successful"
+    }
+    failure {
+      echo "❌ ${params.ENVIRONMENT.toUpperCase()} deployment failed"
+    }
+  }
+}
+
+// .
+// ├── Jenkinsfile
+// ├── Dockerfile
+// ├── app/
+// └── terraform/
